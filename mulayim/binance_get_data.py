@@ -1,11 +1,7 @@
 #"KTIDRUSEAP4BYFYL" // binance Google Auth recovery key
 
 from binance.client import Client
-import json
 import os
-import errno
-import sys 
-import time
 import pandas as pd
 import numpy as np
 
