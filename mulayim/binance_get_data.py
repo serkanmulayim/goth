@@ -10,7 +10,7 @@ api_secret="kE5ORsdAyyA6wNdm85fiHPwhCt51iLsQWXkxvqR71lI6maf9AFEB4H3C7rJZ8uuG";
 DATA_FOLDER = "../data/";
 
 symbol = "BTCUSDT"
-interval = Client.KLINE_INTERVAL_1DAY
+interval = Client.KLINE_INTERVAL_1MINUTE
 
 if not os.path.exists(os.path.dirname(DATA_FOLDER)):
     try:
