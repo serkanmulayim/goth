@@ -4,7 +4,9 @@ from indicators import *
 from balta import *
 from decimal import Decimal
 
-df = pd.read_csv('../data/data.csv', index_col=0,
+
+
+df = pd.read_csv('../data/binance.csv', index_col=0,
 	converters={'open':Decimal, 'high':Decimal, 'low':Decimal, 'close':Decimal, 'volume':Decimal, 'qav':Decimal, 'numtrades':Decimal,'tbbav':Decimal, 'tbqav':Decimal}
 	)
 
