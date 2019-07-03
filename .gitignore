@@ -1,2 +1,14 @@
-data/
-*.pyc
+# Ignore everything
+/*
+
+# Except
+!.gitignore
+!README.md
+
+/*
+!/src
+/src/*
+!/src/goth
+src/goth/main/debug
+src/goth/main/default*
+
