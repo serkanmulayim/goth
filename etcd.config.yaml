@@ -137,4 +137,4 @@ log-outputs: [stderr]
 force-new-cluster: false
 
 auto-compaction-mode: periodic
-auto-compaction-retention: "1
+auto-compaction-retention: "1"
