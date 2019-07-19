@@ -1,4 +1,5 @@
 UI
+===
 
 #Tested with 
 #nvm v12.6.0
@@ -17,12 +18,16 @@ cd ../..
 ```
 
 BACKEND
+===
+
 ```
 export GOPATH=`pwd`
 go get ./...
 go build src/goth/main/main.go
 ```
 
+EDITOR
+===
 
 #for atom ES6 and JSX highlights
 apm install language-babel
