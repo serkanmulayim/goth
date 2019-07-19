@@ -1,10 +1,10 @@
 # This is the configuration file for the etcd server.
 
 # Human-readable name for this member.
-name:
+name: serkanTest
 
 # Path to the data directory.
-data-dir:
+data-dir: appData
 
 # Path to the dedicated wal directory.
 wal-dir:

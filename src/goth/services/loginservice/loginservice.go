@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 	"goth/cryptoutils"
+	"goth/objects/gothuser"
+	"goth/services/configservice"
 	"goth/services/etcdclientservice"
 	"log"
 	"net/http"
@@ -12,18 +14,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const (
-	expireSeconds          = (14 * 24 * 60 * 60)
-	sessionLifeTimeSeconds = (14 * 24 * 60 * 60)
-	sessionName            = "gothsess"
-	cookieDomain           = ".goth.com"
-	cookiePath             = "/"
-	userSessionPrefix      = "/usersession/"
+	expireSeconds = (14 * 24 * 60 * 60)
+
+	sessionName = "gothsess"
+
+	cookiePath        = "/"
+	userSessionPrefix = "/usersession/"
 
 	messageInternalServerError = "INTERNAL_SERVER_ERROR"
 	messageUnauthorized        = "UNAUTHORIZED"
@@ -39,24 +38,31 @@ func LoginRequestHandler(c *gin.Context) {
 		log.Fatal("EtcdClient does not exist in LoginService")
 	}
 
+	conf, ok := c.MustGet(configservice.ConfigContextName).(*configservice.AppConfig)
+	if !ok {
+		log.Fatal("Application configuration could not be found")
+	}
+
 	username := c.Request.FormValue("username")
 	password := c.Request.FormValue("password")
-	auth, err := authenticate(username, password)
+	u, err := authenticate(username, password)
 
-	if auth && err == nil {
+	if u != nil && err == nil {
 
 		sessionID := generateSessionID()
 		etcdSessionPath := etcdGetSessionPath(sessionID)
-		err2 := etcdPut(etcdSessionPath, username, etcdClient)
+		err2 := etcdclientservice.EtcdPut(etcdSessionPath, username, etcdClient)
 
 		if err2 != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				returnMessageFieldName: messageInternalServerError,
 			})
 		} else {
-			c.SetCookie(sessionName, sessionID, expireSeconds, cookiePath, cookieDomain, true, true)
+			//userJSON, _ := json.Marshal(*u)
+			c.SetCookie(sessionName, sessionID, expireSeconds, cookiePath, conf.Fqdn, true, true)
 			c.JSON(http.StatusOK, gin.H{
 				returnMessageFieldName: messageOK,
+				"user":                 *u, //string(userJSON),
 			})
 		}
 
@@ -79,6 +85,7 @@ func etcdGetSessionPath(sessionID string) string {
 	return sessionPath
 }
 
+//CheckAuthRequestHandler checks auth
 func CheckAuthRequestHandler(c *gin.Context) {
 	username, ok := c.MustGet("username").(string)
 	if !ok {
@@ -86,11 +93,44 @@ func CheckAuthRequestHandler(c *gin.Context) {
 			"message": "UNAUTHORIZED",
 		})
 	} else {
+
+		u := gothuser.Object{Username: username}
 		c.JSON(http.StatusOK, gin.H{
-			"message":  "OK",
-			"username": username,
+			"message": "OK",
+			"user":    u,
 		})
 	}
+}
+
+//LogoutHandler log
+func LogoutHandler(c *gin.Context) {
+	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
+	if !ok {
+		log.Fatal("EtcdClient does not exist in LoginService")
+	}
+
+	conf, ok := c.MustGet(configservice.ConfigContextName).(*configservice.AppConfig)
+	if !ok {
+		log.Fatal("Application configuration could not be found")
+	}
+
+	sessionCookie, err := c.Request.Cookie(sessionName)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			returnMessageFieldName: messageUnauthorized,
+		})
+		c.Abort()
+		return
+	}
+
+	sessionID := sessionCookie.Value
+
+	etcdRemoveSession(sessionID, etcdClient)
+	c.SetCookie(sessionName, "x", -1, cookiePath, conf.Fqdn, true, true)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "OK",
+	})
+
 }
 
 //AuthenticationFilterMiddleWare authentication filter
@@ -124,6 +164,17 @@ func AuthenticationFilterMiddleWare() gin.HandlerFunc {
 	}
 }
 
+func etcdRemoveSession(sessionID string, cli *clientv3.Client) {
+	sessionPath := etcdGetSessionPath(sessionID)
+	ctx, cancel := context.WithTimeout(context.Background(), etcdclientservice.EtcdClientClientTimeout*time.Millisecond)
+	_, err := cli.Delete(ctx, sessionPath)
+	cancel()
+	if err != nil {
+		log.Println("Error in removing sessionId for sessionID\". Deleting cookie anyways", sessionID, "\" :", err)
+	}
+
+}
+
 func etcdGetSession(sessionID string, cli *clientv3.Client) (string, error) {
 	sessionPath := etcdGetSessionPath(sessionID)
 	ctx, cancel := context.WithTimeout(context.Background(), etcdclientservice.EtcdClientClientTimeout*time.Millisecond)
@@ -142,45 +193,12 @@ func etcdGetSession(sessionID string, cli *clientv3.Client) (string, error) {
 	return string(gr.Kvs[0].Value), nil
 }
 
-func etcdPut(key string, val string, cli *clientv3.Client) error {
-	ctx, cancel := context.WithTimeout(context.Background(), etcdclientservice.EtcdClientClientTimeout*time.Millisecond)
-
-	lease, _ := cli.Grant(ctx, sessionLifeTimeSeconds)
-
-	_, err := cli.Put(ctx, key, val, clientv3.WithLease(lease.ID))
-	cancel()
-	if err != nil {
-		if err == context.Canceled {
-			log.Println(err)
-		} else if err == context.DeadlineExceeded {
-			log.Println(err)
-		} else if err == rpctypes.ErrEmptyKey {
-			log.Println("Key is not provided, empty key")
-			// process (verr.Errors)
-		} else if ev, ok := status.FromError(err); ok {
-			code := ev.Code()
-			if code == codes.DeadlineExceeded {
-				// server-side context might have timed-out first (due to clock skew)
-				// while original client-side context is not timed-out yet
-				//will not happen since this is embedded etcd
-				log.Println("server-side context might have timed-out first (due to clock skew)")
-
-			}
-		} else {
-			//
-			log.Println("bad cluster endpoints, which are not etcd servers:", err)
-		}
-		return err
+func authenticate(u string, p string) (*gothuser.Object, error) {
+	if (u == "serkan" || u == "serkan2") && p == "password" {
+		obj := gothuser.Object{Username: u}
+		return &obj, nil
 	}
-	return nil
-}
-
-func authenticate(u string, p string) (bool, error) {
-	if u == "serkan" && p == "password" {
-		return true, nil
-	} else {
-		return false, nil
-	}
+	return nil, nil
 }
 
 func generateSessionID() string {
