@@ -9,10 +9,17 @@
 !/src
 /src/*
 !/src/goth
+
+src/goth/main/debug
+src/goth/main/default*
+
 !/src/fe
 !/src/fe/client
 /src/fe/client/node_modules
 /src/fe/client/build
-src/goth/main/debug
-src/goth/main/default*
+
+!/resources/
+!app.yaml
+!etcd.config
+
 
