@@ -32,9 +32,7 @@ class Login extends React.Component {
           }
           this.setState({message:msg});
         } else { //success
-          //localStorage.setItem("user", JSON.stringify(resp.user));
           localStorage.setItem("auth", true);
-          //redirect to /
           this.props.history.push("/");
         }
 
@@ -44,29 +42,20 @@ class Login extends React.Component {
 
 
   componentDidMount() {
-
     Transport.DoCheckAuthRequest()
     .then(resp => {
       if(resp.success){
         localStorage.setItem("auth", true);
         this.props.history.push("/");
-        //this.setState({auth:true});
 
-      } else {        
+      } else {
         localStorage.removeItem("auth");
       }
     });
   }
 
 
-
-
-
   render() {
-    console.log("login rendered");
-
-    console.log(process.env);
-    console.log("TESTING"+process.gfdsgf + "TESTING");
 
     return (
 

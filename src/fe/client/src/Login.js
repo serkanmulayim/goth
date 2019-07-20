@@ -52,21 +52,13 @@ class Login extends React.Component {
         this.props.history.push("/");
         //this.setState({auth:true});
 
-      } else {        
+      } else {
         localStorage.removeItem("auth");
       }
     });
   }
 
-
-
-
-
   render() {
-    console.log("login rendered");
-
-    console.log(process.env);
-    console.log("TESTING"+process.gfdsgf + "TESTING");
 
     return (
 
