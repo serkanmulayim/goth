@@ -21,5 +21,5 @@ src/goth/main/default*
 !/resources/
 !app.yaml
 !etcd.config.yaml
-
+!/configs/
 

@@ -36,4 +36,4 @@ class PrivateRoute extends Route{
   }
 }
 
-export default PrivateRoute;
+export default withRouter(PrivateRoute);

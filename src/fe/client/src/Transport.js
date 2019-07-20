@@ -1,13 +1,14 @@
 import axios from 'axios'
 import https from 'https'
+//import {withRouter} from "react-router-dom";
 
-// const loginEndpoint = "/api/login";
-// const checkAuthEndpoint = "/api/checkauth";
-// const logoutEndpoint = "/api/logout";
+const loginEndpoint = "/api/login";
+const checkAuthEndpoint = "/api/checkauth";
+const logoutEndpoint = "/api/logout";
 
-const loginEndpoint = "https://localhost.goth.com:8443/api/login";
-const checkAuthEndpoint = "https://localhost.goth.com:8443/api/checkauth";
-const logoutEndpoint = "https://localhost.goth.com:8443/api/logout";
+// const loginEndpoint = "https://localhost.goth.com:8443/api/login";
+// const checkAuthEndpoint = "https://localhost.goth.com:8443/api/checkauth";
+// const logoutEndpoint = "https://localhost.goth.com:8443/api/logout";
 
 // axios.defaults.withCredentials = true;
 const axioss = axios.create({

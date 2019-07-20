@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	etcdConfigFilePath        = "./etcd.config.yaml"
-	applicationConfigFilePath = "./app.yaml"
+	etcdConfigFilePath        = "./configs/etcd.config.yaml"
+	applicationConfigFilePath = "./configs/app.yaml"
 )
 
 func main() {
