@@ -17,6 +17,10 @@ src/goth/main/default*
 !/src/fe/client
 /src/fe/client/node_modules
 /src/fe/client/build
+!/src/fe/admin
+/src/fe/admin/node_modules
+/src/fe/admin/build
+
 
 !/resources/
 !app.yaml

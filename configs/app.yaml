@@ -1,0 +1,7 @@
+admin-port: 8444
+application-port: 8443
+
+application-fqdn: localhost.goth.com
+
+tls-cert: ./resources/server.domain.crt
+tls-privatekey: ./resources/server.key
