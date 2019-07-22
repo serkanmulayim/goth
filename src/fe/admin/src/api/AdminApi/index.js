@@ -4,14 +4,16 @@ import https from 'https'
 
 
 const isDev= (process.env.NODE_ENV === "development");
-const server = isDev ? "https://localhost.goth.com:8443" : "";
+const server = isDev ? "https://localhost.goth.com:8444" : "";
 const loginPath = "/api/login";
 const checkauthPath = "/api/checkauth";
 const logoutPath = "/api/logout";
+const adminsPath = "/api/admins";
 
 const loginEndpoint = server + loginPath;
 const checkAuthEndpoint = server + checkauthPath;
-const logoutEndpoint = server +logoutPath;
+const logoutEndpoint = server + logoutPath;
+const adminsEndpoint = server + adminsPath;
 
 // axios.defaults.withCredentials = true;
 const axioss = axios.create({
@@ -28,7 +30,7 @@ const encodeForm = (data) => {
       .join('&');
 }
 
-class Transport {
+class AdminApi {
 
   static async DoLoginRequest(username, password) {
     let form = encodeForm({username:username, password:password});
@@ -62,6 +64,18 @@ class Transport {
     }
   }
 
+  static async GetAdmins(logoutFunction){
+    try {
+      let resp = await axioss.get(adminsEndpoint);
+      return {success: true, status:200, admins:resp.data.admins};
+    } catch (error) {
+      if(!!logoutFunction) {
+        logoutFunction();
+      }
+      localStorage.removeItem("auth");
+      return this.handleError(error);
+    }
+  }
 
 
   static handleError(error) {
@@ -76,4 +90,4 @@ class Transport {
   }
 }
 
-export default Transport;
+export default AdminApi;

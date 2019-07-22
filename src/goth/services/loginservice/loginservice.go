@@ -19,7 +19,10 @@ import (
 const (
 	expireSeconds = (14 * 24 * 60 * 60)
 
-	sessionName = "gothsess"
+	IsAdminApiTypeContextName = "apiType"
+
+	appSessionName   = "gothsess"
+	adminSessionName = "agothsess"
 
 	cookiePath        = "/"
 	userSessionPrefix = "/usersession/"
@@ -32,6 +35,11 @@ const (
 
 //LoginRequestHandler Handle Login Request
 func LoginRequestHandler(c *gin.Context) {
+	sessionName := appSessionName
+	isAdmin, _ := c.MustGet(IsAdminApiTypeContextName).(bool)
+	if isAdmin {
+		sessionName = adminSessionName
+	}
 
 	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
 	if !ok {
@@ -104,6 +112,11 @@ func CheckAuthRequestHandler(c *gin.Context) {
 
 //LogoutHandler log
 func LogoutHandler(c *gin.Context) {
+	sessionName := appSessionName
+	isAdmin, _ := c.MustGet(IsAdminApiTypeContextName).(bool)
+	if isAdmin {
+		sessionName = adminSessionName
+	}
 	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
 	if !ok {
 		log.Fatal("EtcdClient does not exist in LoginService")
@@ -116,8 +129,8 @@ func LogoutHandler(c *gin.Context) {
 
 	sessionCookie, err := c.Request.Cookie(sessionName)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			returnMessageFieldName: messageUnauthorized,
+		c.JSON(http.StatusNoContent, gin.H{
+			returnMessageFieldName: messageOK,
 		})
 		c.Abort()
 		return
@@ -127,7 +140,7 @@ func LogoutHandler(c *gin.Context) {
 
 	etcdRemoveSession(sessionID, etcdClient)
 	c.SetCookie(sessionName, "x", -1, cookiePath, conf.Fqdn, true, true)
-	c.JSON(http.StatusOK, gin.H{
+	c.JSON(http.StatusNoContent, gin.H{
 		"message": "OK",
 	})
 
@@ -136,6 +149,12 @@ func LogoutHandler(c *gin.Context) {
 //AuthenticationFilterMiddleWare authentication filter
 func AuthenticationFilterMiddleWare() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		sessionName := appSessionName
+		isAdmin, _ := c.MustGet(IsAdminApiTypeContextName).(bool)
+		if isAdmin {
+			sessionName = adminSessionName
+		}
+
 		etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
 		if !ok {
 			log.Fatal("EtcdClient does not exist in AuthenticationFilterMiddleWare")

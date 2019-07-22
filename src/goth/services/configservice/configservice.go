@@ -14,11 +14,13 @@ const (
 
 //AppConfig application config
 type AppConfig struct {
-	AppPort       int    `yaml:"application-port"`
-	AdminPort     int    `yaml:"admin-port"`
-	Fqdn          string `yaml:"application-fqdn"`
-	TLSCert       string `yaml:"tls-cert"`
-	TLSPrivateKey string `yaml:"tls-privatekey"`
+	AppPort            int    `yaml:"application-port"`
+	AdminPort          int    `yaml:"admin-port"`
+	Fqdn               string `yaml:"application-fqdn"`
+	AppTLSCert         string `yaml:"app-tls-cert"`
+	AppTLSPrivateKey   string `yaml:"app-tls-privatekey"`
+	AdminTLSCert       string `yaml:"admin-tls-cert"`
+	AdminTLSPrivateKey string `yaml:"admin-tls-privatekey"`
 }
 
 //GetApplicationConfig get the pointer for application config

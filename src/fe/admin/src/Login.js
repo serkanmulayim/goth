@@ -2,7 +2,7 @@ import React from 'react';
 import logo from './logo.svg';
 import './App.css'
 import {Form, Button} from "react-bootstrap";
-import Transport from './Transport'
+import AdminApi from './api/AdminApi';
 import {withRouter} from "react-router-dom";
 
 class Login extends React.Component {
@@ -18,7 +18,7 @@ class Login extends React.Component {
     if(!event.target.username.value || !event.target.password.value){
       this.setState({message:"Please enter username and password"});
     } else {
-      Transport.DoLoginRequest(event.target.username.value,
+      AdminApi.DoLoginRequest(event.target.username.value,
             event.target.password.value)
       .then(resp => {
         if(!resp.success) {
@@ -42,7 +42,7 @@ class Login extends React.Component {
 
 
   componentDidMount() {
-    Transport.DoCheckAuthRequest()
+    AdminApi.DoCheckAuthRequest()
     .then(resp => {
       if(resp.success){
         localStorage.setItem("auth", true);
@@ -63,11 +63,11 @@ class Login extends React.Component {
           <header className="GoTH Authorization Server"/>
 
 
-          <div style={{width:'300px', height:'380px', textAlign:'center', border:'2px solid #007bff', padding:'20px', position:'center', margin:'100px'}}>
+          <div style={{width:'300px', height:'380px', textAlign:'center', border:'2px solid #000099', padding:'20px', position:'center', margin:'100px'}}>
 
               <Form onSubmit={this.submitHandler}>
                   <img src={logo} className="App-logo" alt="logo"/>
-                  <br/><br/>
+                  <br/><br/>Admin Login<br/>
 
                   <Form.Group controlId="username" size="large">
                       {/* <Form.Label>Username</Form.Label> */}
