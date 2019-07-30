@@ -7,4 +7,5 @@ type Object struct {
 	Email     string `json:"email"`
 	Phone     string `json:"phone"`
 	Address   string `json:"address"`
+	UserID    int    `json:"userid"`
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import {Navbar, Nav, NavDropdown} from 'react-bootstrap';
 import AdminApi from './api/AdminApi';
-import Certificates from './components/Certificates';
+import SigningKeys from './components/SigningKeys';
 import Admins from './components/Admins';
 import OAuthApps from './components/OAuthApps';
 import InternalUsers from './components/InternalUsers';
@@ -35,7 +35,7 @@ class Home extends React.Component {
 
         if (resp.success) {
           let newState = Object.assign({}, this.state);
-          newState.user = resp.user;
+          newState.admin = resp.admin;
           this.setState(newState);
         } else {
           localStorage.removeItem("auth");
@@ -59,8 +59,8 @@ class Home extends React.Component {
       case "oauth":
         Comp = OAuthApps;
         break;
-      case "certificates":
-        Comp = Certificates;
+      case "signingkeys":
+        Comp = SigningKeys;
         break;
       case "databases":
         Comp = Databases;
@@ -82,10 +82,10 @@ class Home extends React.Component {
   }
 
   getUsernameString() {
-    if(!this.state.user) {
-      return "Username";
+    if(!this.state.admin) {
+      return "Admin";
     }
-    return this.state.user.username;
+    return this.state.admin.firstname + " " + this.state.admin.lastname;
   }
 
 
@@ -103,7 +103,7 @@ render() {
                         <Nav.Link eventKey="oauth"> OAuth </Nav.Link>
                     </Nav.Item>
                     <Nav.Item >
-                        <Nav.Link eventKey="certificates">Certificates</Nav.Link>
+                        <Nav.Link eventKey="signingkeys">Signature Keys</Nav.Link>
                     </Nav.Item>
 
                     <Nav.Item >
@@ -122,6 +122,7 @@ render() {
                 <Nav>
                     <NavDropdown title={this.getUsernameString()} id="usermenu" >
                         <NavDropdown.Item onSelect={this.handleLogout}>Sign Out</NavDropdown.Item>
+                        <NavDropdown.Item onSelect={this.handleLogout}>Change Password</NavDropdown.Item>
                     </NavDropdown>
                     {/* <Button variant = "outline-info" size = "sm" onClick = {this.handleLogout}> Sign out </Button> */}
                 </Nav>

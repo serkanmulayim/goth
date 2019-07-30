@@ -47,7 +47,7 @@ class AdminApi {
   static async DoCheckAuthRequest(){
     try {
       let resp = await axioss.get(checkAuthEndpoint);
-      return {success: true, status:200, user:resp.data.user};
+      return {success: true, status:200, admin:resp.data.admin};
     } catch (error) {
       localStorage.setItem("auth", true);
       return this.handleError(error);
@@ -64,6 +64,7 @@ class AdminApi {
     }
   }
 
+  //TODO: use logout function
   static async GetAdmins(logoutFunction){
     try {
       let resp = await axioss.get(adminsEndpoint);
@@ -73,9 +74,56 @@ class AdminApi {
         logoutFunction();
       }
       localStorage.removeItem("auth");
-      return this.handleError(error);
+      return error.response;
     }
   }
+
+  //TODO: use logout function
+  static async DeleteAdmin(logoutFunction, admin) {
+    try{
+      let resp = await axioss.delete(adminsEndpoint+"/"+admin.userid);
+      return {success: true, status:200, admins:resp.data.admins};
+    } catch (error) {
+      if(!!error.response){
+
+        return error.response;
+      } else {
+        let response = {success: false, status:-1, message:"Network Error"};
+        return response;
+      }
+    }
+  }
+  //TODO: use logout function
+  static async PutAdmin(logoutFunction, admin) {
+    try{
+      let resp = await axioss.put(adminsEndpoint+"/"+admin.userid);
+      return {success: true, status:200, admins:resp.data.admins};
+    } catch (error) {
+      if(!!error.response){
+        return error.response;
+      } else {
+        let response = {success: false, status:-1, message:"Network Error"};
+        return response;
+      }
+    }
+  }
+
+  //TODO: use logout function
+  static async CreateAdmin(logoutFunction, newAdmin) {
+    try{
+      let resp = await axioss.post(adminsEndpoint+"/"+newAdmin);
+      return {success: true, status:200, admins:resp.data.admins};
+    } catch (error) {
+      if(!!error.response){
+        return error.response;
+      } else {
+        let response = {success: false, status:-1, message:"Network Error"};
+        return response;
+      }
+    }
+  }
+
+
 
 
   static handleError(error) {
@@ -88,6 +136,8 @@ class AdminApi {
       return {success:false, status:error.response.status};
     }
   }
+
+
 }
 
 export default AdminApi;

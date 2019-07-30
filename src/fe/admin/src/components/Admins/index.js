@@ -1,104 +1,120 @@
 import React from "react";
 import AdminApi from "../../api/AdminApi";
-import {Button, ButtonToolbar, ButtonGroup} from "react-bootstrap";
-//import {TableHeaderColumn, BootstrapButton} from "react-bootstrap-table-next";
+import {Button, ButtonGroup} from "react-bootstrap";
 import BootstrapTable from "react-bootstrap-table-next";
-import TableHeaderColumn from "react-bootstrap-table-next";
 import BootstrapButton from "react-bootstrap-table-next";
 import "react-bootstrap-table-next/dist/react-bootstrap-table2.min.css";
+import AdminDeleteModal from "./AdminDeleteModal";
+import AdminUpdateModal from "./AdminUpdateModal";
+import AdminCreateModal from "./AdminCreateModal";
 
-
-class Admins extends React.Component{
-tableCols = [
-  {
-    dataField: "firstname",
-    text: "Firstname",
-    sort: true
-  },
-  {
-    dataField: "lastname",
-    text: "Lastname",
-    sort: true
-  },
+const tableCols = [
   {
     dataField: "email",
-    text: "Email",
-    sort: true
+    text: "Name",
+    sort: true,
+    formatter:(cell, row, rowIndex, formatExtraData) => {
+      return (<p>{row.firstname} {row.lastname}</p>);
+    }
+  },
+  {
+    dataField: "firstname",
+    text: "email",
+    sort: true,
+    formatter:(cell, row, rowIndex, formatExtraData) => {
+      return (<p><a href={"mailto:" + row.email}>{row.email}</a></p>);
+    }
   },
   {
     dataField:"",
     text:"",
     formatter:(cellContent, row, rowIndex, formatExtraData) => {
-      //return <a onClick={alert("clicked")}>row.firstname</a>
-      //alert(JSON.stringify(row))
-       return (
-
-        <ButtonGroup vertical>
-          <Button size="sm" type="button" variant="link" onClick={this.updateUser(row)}>Update</Button>
-          <Button size="sm" type="button" variant="link" onClick={this.deleteUser(row)}>Delete</Button>
+      return (
+        <ButtonGroup>
+            <Button size="sm" type="button" variant="link" onClick={(e) => updateAdmin2(e, row)}>Update</Button>
+            <Button size="sm" type="button" variant="link" onClick={(e) => deleteAdmin2(e, row)}>Delete</Button>
         </ButtonGroup>
-
       );
     }
   }
 ];
+var deleteAdmin2, updateAdmin2;
+function deleteAdmin(e, row) {
+  e.preventDefault();
+  this.setState({showCreateUpdateModal: false, showDeleteModal: true, affectedAdmin:row, showCreateModal:false});
+
+}
+
+function updateAdmin(e, row) {
+  e.preventDefault();
+  this.setState({showUpdateModal: true, showDeleteModal: false,affectedAdmin:row, showCreateModal:false});
+}
+
+class Admins extends React.Component{
+
   constructor(props) {
     super(props);
-    console.log(props);
-    this.state={admins:[]};
+    deleteAdmin2 = deleteAdmin.bind(this);
+    updateAdmin2 = updateAdmin.bind(this);
+    this.state={admins:[], showDeleteModal:false, showCreateUpdateModal:false, showCreateModal:false, affectedAdmin:{}};
+    this.messageText = React.createRef();
   }
 
-  updateUser= (row) => {
-    return function(e) {
-      alert(row.firstname + " update")
+
+  hideModals = (e, message) => {
+    if(!!message) {
+      console.log("message", message);
+      this.messageText.current.innerText = message;
+    } else {
+      this.messageText.current.innerText = "";
     }
-  }
-
-  deleteUser=(row) =>{
-    let x = this.state.admins.length
-    return function(e) {
-      alert(row.firstname + " delete "+ x)
-    }
-  }
-
-  selectRow = (row, isSelected, rowIndex) =>{
-    alert(JSON.stringify(row));
+    this.setState({showDeleteModal:false, showUpdateModal:false, showCreateModal:false,  affectedAdmin:{}});
   }
 
   buttonFormatter = (cell, row) =>{
     return (<BootstrapButton type="submit">Update</BootstrapButton>);
   }
 
+  createAdmin=(e) => {
+    e.preventDefault();
+    this.setState({showUpdateModal: false, showDeleteModal: false,showCreateModal:true,  affectedAdmin:{}});
+  }
+
   render() {
+    console.log("rerenderig", this.state);
 
     return (
 
-      <div style={{width:"80%", margin:"20px auto", textAlign:"center", border:'1px solid gray'}}>
+      <div className="Admin" style={{width:"80%", margin:"20px auto", textAlign:"center", border:'1px solid gray'}}>
           <br/>
           <h2 className="h2">Admin Accounts</h2>
           <div >
-
-          <BootstrapTable
-              keyField="email"
-              data={this.state.admins}
-              noDataIndication="No Admins? Weird..."
-              columns={this.tableCols}
-              selectRow={{
-              mode: "checkbox",
-              hideSelectColumn:true,
-              clickToSelect:false,
-              onSelect:this.selectRow
-              }}
-              hover
-              striped
-              condensed
-              bootstrap4
-              bordered/>
+              <BootstrapTable
+                  keyField="email"
+                  data={this.state.admins}
+                  noDataIndication="No Admins? Weird..."
+                  columns={tableCols}
+                  selectRow={{
+                      mode: "checkbox",
+                      hideSelectColumn:true,
+                      clickToSelect:false,
+                      onSelect:this.selectRow
+                  }}
+                  hover
+                  striped
+                  condensed
+                  bootstrap4
+                  bordered
+              />
 
           </div>
 
           <div style={{textAlign:"right", margin:"auto 5%"}}>
-              <Button  size="small" variant="secondary">Create Account</Button>
+              <label style={{color:'green', margin:"auto 1%"}} ref={this.messageText}>{this.state.message}</label>
+              <Button  variant="primary" onClick={this.createAdmin}>Create Account</Button>
+              <AdminDeleteModal show={this.state.showDeleteModal} errorMessage="" onHideWrapper={this.hideModals} admin={this.state.affectedAdmin} />
+              <AdminUpdateModal show={this.state.showUpdateModal} errorMessage="" onHideWrapper={this.hideModals} admin={this.state.affectedAdmin} />
+              <AdminCreateModal show={this.state.showCreateModal} errorMessage="" onHideWrapper={this.hideModals}/>
           </div>
 
           <br/><br/>
@@ -109,9 +125,7 @@ tableCols = [
   componentDidMount() {
     AdminApi.GetAdmins(this.props.handleLogout)
     .then(resp => {
-      let newState = Object.assign({}, this.state);
-      newState.admins = resp.admins;
-      this.setState(newState);
+      this.setState({admins:resp.admins});
 
     });
 

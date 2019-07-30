@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"goth/cryptoutils"
+	"goth/objects/admin"
 	"goth/objects/gothuser"
 	"goth/services/configservice"
 	"goth/services/etcdclientservice"
@@ -24,8 +25,9 @@ const (
 	appSessionName   = "gothsess"
 	adminSessionName = "agothsess"
 
-	cookiePath        = "/"
-	userSessionPrefix = "/usersession/"
+	cookiePath         = "/"
+	userSessionPrefix  = "/usersession/"
+	adminSessionPrefix = "/adminsession/"
 
 	messageInternalServerError = "INTERNAL_SERVER_ERROR"
 	messageUnauthorized        = "UNAUTHORIZED"
@@ -33,13 +35,8 @@ const (
 	returnMessageFieldName     = "message"
 )
 
-//LoginRequestHandler Handle Login Request
-func LoginRequestHandler(c *gin.Context) {
-	sessionName := appSessionName
-	isAdmin, _ := c.MustGet(IsAdminApiTypeContextName).(bool)
-	if isAdmin {
-		sessionName = adminSessionName
-	}
+//AppLoginRequestHandler Handle Login Request
+func AppLoginRequestHandler(c *gin.Context) {
 
 	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
 	if !ok {
@@ -58,7 +55,7 @@ func LoginRequestHandler(c *gin.Context) {
 	if u != nil && err == nil {
 
 		sessionID := generateSessionID()
-		etcdSessionPath := etcdGetSessionPath(sessionID)
+		etcdSessionPath := etcdGetSessionPath(sessionID, false)
 		err2 := etcdclientservice.EtcdPut(etcdSessionPath, username, etcdClient)
 
 		if err2 != nil {
@@ -67,7 +64,7 @@ func LoginRequestHandler(c *gin.Context) {
 			})
 		} else {
 			//userJSON, _ := json.Marshal(*u)
-			c.SetCookie(sessionName, sessionID, expireSeconds, cookiePath, conf.Fqdn, true, true)
+			c.SetCookie(appSessionName, sessionID, expireSeconds, cookiePath, conf.Fqdn, true, true)
 			c.JSON(http.StatusOK, gin.H{
 				returnMessageFieldName: messageOK,
 				"user":                 *u, //string(userJSON),
@@ -87,14 +84,69 @@ func LoginRequestHandler(c *gin.Context) {
 
 }
 
-func etcdGetSessionPath(sessionID string) string {
-	sessionKeySlice := []string{userSessionPrefix, sessionID}
+//AdminLoginRequestHandler Handle Login Request
+func AdminLoginRequestHandler(c *gin.Context) {
+
+	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
+	if !ok {
+		log.Fatal("EtcdClient does not exist in LoginService")
+	}
+
+	conf, ok := c.MustGet(configservice.ConfigContextName).(*configservice.AppConfig)
+	if !ok {
+		log.Fatal("Application configuration could not be found")
+	}
+
+	username := c.Request.FormValue("username")
+	password := c.Request.FormValue("password")
+	u, err := authenticateAdmin(username, password)
+
+	if u != nil && err == nil {
+
+		sessionID := generateSessionID()
+		etcdSessionPath := etcdGetSessionPath(sessionID, true)
+		err2 := etcdclientservice.EtcdPut(etcdSessionPath, username, etcdClient)
+
+		if err2 != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				returnMessageFieldName: messageInternalServerError,
+			})
+		} else {
+			//userJSON, _ := json.Marshal(*u)
+			c.SetCookie(adminSessionName, sessionID, expireSeconds, cookiePath, conf.Fqdn, true, true)
+			c.JSON(http.StatusOK, gin.H{
+				returnMessageFieldName: messageOK,
+				"user":                 *u, //string(userJSON),
+			})
+		}
+
+	} else if err == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			returnMessageFieldName: messageUnauthorized,
+		})
+
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			returnMessageFieldName: messageInternalServerError,
+		})
+	}
+
+}
+
+func etcdGetSessionPath(sessionID string, isAdmin bool) string {
+	var sessionKeySlice []string
+	if isAdmin {
+		sessionKeySlice = []string{userSessionPrefix, sessionID}
+	} else {
+		sessionKeySlice = []string{adminSessionPrefix, sessionID}
+	}
+
 	sessionPath := strings.Join(sessionKeySlice, "")
 	return sessionPath
 }
 
-//CheckAuthRequestHandler checks auth
-func CheckAuthRequestHandler(c *gin.Context) {
+//AppCheckAuthRequestHandler checks auth
+func AppCheckAuthRequestHandler(c *gin.Context) {
 	username, ok := c.MustGet("username").(string)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -110,13 +162,26 @@ func CheckAuthRequestHandler(c *gin.Context) {
 	}
 }
 
-//LogoutHandler log
-func LogoutHandler(c *gin.Context) {
-	sessionName := appSessionName
-	isAdmin, _ := c.MustGet(IsAdminApiTypeContextName).(bool)
-	if isAdmin {
-		sessionName = adminSessionName
+//AdminCheckAuthRequestHandler checks auth
+func AdminCheckAuthRequestHandler(c *gin.Context) {
+	_, ok := c.MustGet("admin").(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "UNAUTHORIZED",
+		})
+	} else {
+
+		admin := admin.Object{FirstName: "Serkan", LastName: "Mulayim", Email: "ser$%kan@gmail.com", Phone: "5555555", Address: "400 3rd street", UserID: 1}
+		c.JSON(http.StatusOK, gin.H{
+			"message": "OK",
+			"admin":   admin,
+		})
 	}
+}
+
+//AppLogoutHandler log
+func AppLogoutHandler(c *gin.Context) {
+
 	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
 	if !ok {
 		log.Fatal("EtcdClient does not exist in LoginService")
@@ -127,7 +192,7 @@ func LogoutHandler(c *gin.Context) {
 		log.Fatal("Application configuration could not be found")
 	}
 
-	sessionCookie, err := c.Request.Cookie(sessionName)
+	sessionCookie, err := c.Request.Cookie(appSessionName)
 	if err != nil {
 		c.JSON(http.StatusNoContent, gin.H{
 			returnMessageFieldName: messageOK,
@@ -138,29 +203,56 @@ func LogoutHandler(c *gin.Context) {
 
 	sessionID := sessionCookie.Value
 
-	etcdRemoveSession(sessionID, etcdClient)
-	c.SetCookie(sessionName, "x", -1, cookiePath, conf.Fqdn, true, true)
+	etcdRemoveSession(sessionID, false, etcdClient)
+	c.SetCookie(appSessionName, "x", -1, cookiePath, conf.Fqdn, true, true)
 	c.JSON(http.StatusNoContent, gin.H{
 		"message": "OK",
 	})
 
 }
 
-//AuthenticationFilterMiddleWare authentication filter
-func AuthenticationFilterMiddleWare() gin.HandlerFunc {
+//AdminLogoutHandler log
+func AdminLogoutHandler(c *gin.Context) {
+
+	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
+	if !ok {
+		log.Fatal("EtcdClient does not exist in LoginService")
+	}
+
+	conf, ok := c.MustGet(configservice.ConfigContextName).(*configservice.AppConfig)
+	if !ok {
+		log.Fatal("Application configuration could not be found")
+	}
+
+	sessionCookie, err := c.Request.Cookie(adminSessionName)
+	if err != nil {
+		c.JSON(http.StatusNoContent, gin.H{
+			returnMessageFieldName: messageOK,
+		})
+		c.Abort()
+		return
+	}
+
+	sessionID := sessionCookie.Value
+
+	etcdRemoveSession(sessionID, true, etcdClient)
+	c.SetCookie(adminSessionName, "x", -1, cookiePath, conf.Fqdn, true, true)
+	c.JSON(http.StatusNoContent, gin.H{
+		"message": "OK",
+	})
+
+}
+
+//AppAuthenticationFilterMiddleWare authentication filter
+func AppAuthenticationFilterMiddleWare() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		sessionName := appSessionName
-		isAdmin, _ := c.MustGet(IsAdminApiTypeContextName).(bool)
-		if isAdmin {
-			sessionName = adminSessionName
-		}
 
 		etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
 		if !ok {
 			log.Fatal("EtcdClient does not exist in AuthenticationFilterMiddleWare")
 		}
 
-		sessionCookie, err := c.Request.Cookie(sessionName)
+		sessionCookie, err := c.Request.Cookie(appSessionName)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				returnMessageFieldName: messageUnauthorized,
@@ -170,7 +262,7 @@ func AuthenticationFilterMiddleWare() gin.HandlerFunc {
 		}
 
 		sessionID := sessionCookie.Value
-		username, err := etcdGetSession(sessionID, etcdClient)
+		username, err := etcdGetSession(sessionID, false, etcdClient)
 		if err != nil || username == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				returnMessageFieldName: messageUnauthorized,
@@ -183,8 +275,40 @@ func AuthenticationFilterMiddleWare() gin.HandlerFunc {
 	}
 }
 
-func etcdRemoveSession(sessionID string, cli *clientv3.Client) {
-	sessionPath := etcdGetSessionPath(sessionID)
+//AdminAuthenticationFilterMiddleWare authentication filter
+func AdminAuthenticationFilterMiddleWare() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
+		if !ok {
+			log.Fatal("EtcdClient does not exist in AuthenticationFilterMiddleWare")
+		}
+
+		sessionCookie, err := c.Request.Cookie(adminSessionName)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				returnMessageFieldName: messageUnauthorized,
+			})
+			c.Abort()
+			return
+		}
+
+		sessionID := sessionCookie.Value
+		adminname, err := etcdGetSession(sessionID, true, etcdClient)
+		if err != nil || adminname == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				returnMessageFieldName: messageUnauthorized,
+			})
+			c.Abort()
+			return
+		}
+		c.Set("admin", adminname)
+		c.Next()
+	}
+}
+
+func etcdRemoveSession(sessionID string, isAdmin bool, cli *clientv3.Client) {
+	sessionPath := etcdGetSessionPath(sessionID, isAdmin)
 	ctx, cancel := context.WithTimeout(context.Background(), etcdclientservice.EtcdClientClientTimeout*time.Millisecond)
 	_, err := cli.Delete(ctx, sessionPath)
 	cancel()
@@ -194,8 +318,8 @@ func etcdRemoveSession(sessionID string, cli *clientv3.Client) {
 
 }
 
-func etcdGetSession(sessionID string, cli *clientv3.Client) (string, error) {
-	sessionPath := etcdGetSessionPath(sessionID)
+func etcdGetSession(sessionID string, isAdmin bool, cli *clientv3.Client) (string, error) {
+	sessionPath := etcdGetSessionPath(sessionID, isAdmin)
 	ctx, cancel := context.WithTimeout(context.Background(), etcdclientservice.EtcdClientClientTimeout*time.Millisecond)
 	gr, err := cli.Get(ctx, sessionPath)
 	cancel()
@@ -210,6 +334,14 @@ func etcdGetSession(sessionID string, cli *clientv3.Client) (string, error) {
 	}
 
 	return string(gr.Kvs[0].Value), nil
+}
+
+func authenticateAdmin(u string, p string) (*admin.Object, error) {
+	if u == "serkan" && p == "password" {
+		admin := admin.Object{FirstName: "Serkan", LastName: "Mulayim", Email: "ser$%kan@gmail.com", Phone: "5555555", Address: "400 3rd street", UserID: 1}
+		return &admin, nil
+	}
+	return nil, nil
 }
 
 func authenticate(u string, p string) (*gothuser.Object, error) {

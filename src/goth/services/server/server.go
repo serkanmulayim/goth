@@ -29,7 +29,7 @@ func StartAdminApp(appConfig *configservice.AppConfig, etcdClient *clientv3.Clie
 
 	public := router.Group("/api")
 	api := router.Group("/api")
-	api.Use(loginservice.AuthenticationFilterMiddleWare())
+	api.Use(loginservice.AdminAuthenticationFilterMiddleWare())
 
 	api.GET("/auth", func(c *gin.Context) {
 		out, _ := cryptoutils.GenerateRandomBytes(32)
@@ -40,9 +40,9 @@ func StartAdminApp(appConfig *configservice.AppConfig, etcdClient *clientv3.Clie
 	})
 
 	admins := [3]admin.Object{
-		admin.Object{FirstName: "Serkan", LastName: "Mulayim", Email: "serkan@gmail.com", Phone: "5555555", Address: "400 3rd street"},
-		admin.Object{FirstName: "Gozde", LastName: "Nulayim", Email: "gozde@gmail.com", Phone: "33333333", Address: "500 4th street"},
-		admin.Object{FirstName: "Ali", LastName: "Mulayim", Email: "ali@gmail.com", Phone: "33333333", Address: "500 4th street"},
+		admin.Object{FirstName: "Serkan", LastName: "Mulayim", Email: "ser$%kan@gmail.com", Phone: "5555555", Address: "400 3rd street", UserID: 1},
+		admin.Object{FirstName: "Gozde", LastName: "Nulayim", Email: "gozde@gmail.com", Phone: "33333333", Address: "500 4th street", UserID: 2},
+		admin.Object{FirstName: "Ali", LastName: "Mulayim", Email: "ali@gmail.com", Phone: "33333333", Address: "500 4th street", UserID: 3},
 	}
 
 	api.GET("/admins", func(c *gin.Context) {
@@ -52,9 +52,9 @@ func StartAdminApp(appConfig *configservice.AppConfig, etcdClient *clientv3.Clie
 		})
 	})
 
-	api.GET("/checkauth", loginservice.CheckAuthRequestHandler)
-	public.GET("/logout", loginservice.LogoutHandler)
-	public.POST("/login", loginservice.LoginRequestHandler)
+	api.GET("/checkauth", loginservice.AdminCheckAuthRequestHandler)
+	public.GET("/logout", loginservice.AdminLogoutHandler)
+	public.POST("/login", loginservice.AdminLoginRequestHandler)
 	router.RunTLS(":"+strconv.Itoa(appConfig.AdminPort), appConfig.AdminTLSCert, appConfig.AdminTLSPrivateKey)
 
 }
@@ -72,7 +72,7 @@ func StartClientApp(appConfig *configservice.AppConfig, etcdClient *clientv3.Cli
 
 	public := router.Group("/api")
 	api := router.Group("/api")
-	api.Use(loginservice.AuthenticationFilterMiddleWare())
+	api.Use(loginservice.AppAuthenticationFilterMiddleWare())
 
 	api.GET("/token", func(c *gin.Context) {
 		out, _ := cryptoutils.GenerateRandomBytes(32)
@@ -89,9 +89,9 @@ func StartClientApp(appConfig *configservice.AppConfig, etcdClient *clientv3.Cli
 			"message": "auth-" + o,
 		})
 	})
-	api.GET("/checkauth", loginservice.CheckAuthRequestHandler)
-	public.GET("/logout", loginservice.LogoutHandler)
-	public.POST("/login", loginservice.LoginRequestHandler)
+	api.GET("/checkauth", loginservice.AppCheckAuthRequestHandler)
+	public.GET("/logout", loginservice.AppLogoutHandler)
+	public.POST("/login", loginservice.AppLoginRequestHandler)
 	router.RunTLS(":"+strconv.Itoa(appConfig.AppPort), appConfig.AppTLSCert, appConfig.AppTLSPrivateKey)
 
 }
