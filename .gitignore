@@ -21,7 +21,8 @@ src/goth/main/default*
 /src/fe/admin/node_modules
 /src/fe/admin/build
 
-
+!clientbuild
+!adminbuild
 !/resources/
 !app.yaml
 !etcd.config.yaml
