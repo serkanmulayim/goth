@@ -13,11 +13,10 @@ import (
 	"github.com/gin-gonic/contrib/cors"
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
-	"go.etcd.io/etcd/clientv3"
 )
 
 // StartAdminApp starts the admin servers with the apis
-func StartAdminApp(appConfig *configservice.AppConfig, etcdClient *clientv3.Client) {
+func StartAdminApp(appConfig *configservice.AppConfig, etcdClient etcdclientservice.ETCDIface) {
 
 	router := gin.Default()
 	router.Use(static.Serve("/", static.LocalFile("./adminbuild", true)))
@@ -40,9 +39,9 @@ func StartAdminApp(appConfig *configservice.AppConfig, etcdClient *clientv3.Clie
 	})
 
 	admins := [3]admin.Object{
-		admin.Object{FirstName: "Serkan", LastName: "Mulayim", Email: "ser$%kan@gmail.com", Phone: "5555555", Address: "400 3rd street", UserID: 1},
-		admin.Object{FirstName: "Gozde", LastName: "Nulayim", Email: "gozde@gmail.com", Phone: "33333333", Address: "500 4th street", UserID: 2},
-		admin.Object{FirstName: "Ali", LastName: "Mulayim", Email: "ali@gmail.com", Phone: "33333333", Address: "500 4th street", UserID: 3},
+		admin.Object{FirstName: "Serkan", LastName: "Mulayim", Email: "ser$%kan@gmail.com", Phone: "5555555", Address: "400 3rd street", ID: 1},
+		admin.Object{FirstName: "Gozde", LastName: "Nulayim", Email: "gozde@gmail.com", Phone: "33333333", Address: "500 4th street", ID: 2},
+		admin.Object{FirstName: "Ali", LastName: "Mulayim", Email: "ali@gmail.com", Phone: "33333333", Address: "500 4th street", ID: 3},
 	}
 
 	api.GET("/admins", func(c *gin.Context) {
@@ -60,7 +59,7 @@ func StartAdminApp(appConfig *configservice.AppConfig, etcdClient *clientv3.Clie
 }
 
 //StartClientApp starts the user application
-func StartClientApp(appConfig *configservice.AppConfig, etcdClient *clientv3.Client) {
+func StartClientApp(appConfig *configservice.AppConfig, etcdClient etcdclientservice.ETCDIface) {
 
 	router := gin.Default()
 	router.Use(static.Serve("/", static.LocalFile("./clientbuild", true)))
@@ -116,7 +115,7 @@ func preflightHeadersMiddleWare() gin.HandlerFunc {
 	}
 }
 
-func etcdClientMiddleWare(client *clientv3.Client) gin.HandlerFunc {
+func etcdClientMiddleWare(client etcdclientservice.ETCDIface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Set(etcdclientservice.EtcdClientAPIMiddleWareName, client)
 		c.Next()

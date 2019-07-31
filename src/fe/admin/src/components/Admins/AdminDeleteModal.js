@@ -15,9 +15,9 @@ class AdminDeleteModal extends React.Component {
     AdminApi.DeleteAdmin(null, this.props.admin)
     .then(resp => {
       if(resp.success){
-        this.onHide("Admin is deleted");
+        this.onHide(null, "Admin is deleted");
       } else {
-        this.labelMessage.current.innerText= resp.message;
+        this.messageText.current.innerText= resp.message;
       }
     })
   }
@@ -40,7 +40,7 @@ class AdminDeleteModal extends React.Component {
                   </Modal.Title>
               </Modal.Header>
               <Modal.Body>
-                  Delete user {this.props.admin.firstname} {this.props.admin.lastname} with email {this.props.admin.email}
+                  Delete admin, <b>{this.props.admin.firstname} {this.props.admin.lastname}</b>, with email <a href={"mailto:" + this.props.admin.email}>{this.props.admin.email}</a>.
               </Modal.Body>
               <Modal.Footer>
                   <p style={{color:'red'}} ref={this.messageText}>{this.state.message}</p>

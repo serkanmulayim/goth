@@ -31,8 +31,22 @@ type clientConfig struct {
 	Endpoints         string `yaml:"listen-client-urls"`
 }
 
+//ETCDClient implements the interface to do all operations
+type ETCDClient struct {
+	Client *clientv3.Client
+}
+
+//ETCDIface mockable interface for accessing ETCD
+type ETCDIface interface {
+	Put(key string, value string) error
+	Get(key string) (*clientv3.GetResponse, error)
+	// GetAll(key string)
+	Delete(key string) (*clientv3.DeleteResponse, error)
+	// DeleteAll(key string)
+}
+
 //GetClient get etcdClient
-func GetClient(filename string) (*clientv3.Client, error) {
+func GetClient(filename string) (*ETCDClient, error) {
 
 	yamlFile, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -66,7 +80,60 @@ func GetClient(filename string) (*clientv3.Client, error) {
 		return nil, err
 	}
 
-	return cli, nil
+	out := ETCDClient{Client: cli}
+
+	return &out, nil
+}
+
+//Get implementation for get one
+func (cli *ETCDClient) Get(key string) (*clientv3.GetResponse, error) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), EtcdClientClientTimeout*time.Millisecond)
+	gr, err := cli.Client.Get(ctx, key)
+	cancel()
+	return gr, err
+}
+
+//Delete implementation for delete 1
+func (cli *ETCDClient) Delete(key string) (*clientv3.DeleteResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), EtcdClientClientTimeout*time.Millisecond)
+	dr, err := cli.Client.Delete(ctx, key)
+	cancel()
+	return dr, err
+}
+
+// Put etcd put implementation
+func (cli *ETCDClient) Put(key string, val string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), EtcdClientClientTimeout*time.Millisecond)
+
+	lease, _ := cli.Client.Grant(ctx, sessionLifeTimeSeconds)
+
+	_, err := cli.Client.Put(ctx, key, val, clientv3.WithLease(lease.ID))
+	cancel()
+	if err != nil {
+		if err == context.Canceled {
+			log.Printf(etcdClientPutErrorFormat, key, err)
+		} else if err == context.DeadlineExceeded {
+			log.Printf(etcdClientPutErrorFormat, key, err)
+		} else if err == rpctypes.ErrEmptyKey {
+			log.Println(etcdClientPutErrorFormat, key, err)
+			// process (verr.Errors)
+		} else if ev, ok := status.FromError(err); ok {
+			code := ev.Code()
+			if code == codes.DeadlineExceeded {
+				// server-side context might have timed-out first (due to clock skew)
+				// while original client-side context is not timed-out yet
+				//will not happen since this is embedded etcd
+				log.Println("server-side context might have timed-out first (due to clock skew)")
+
+			}
+		} else {
+			//
+			log.Println("bad cluster endpoints, which are not etcd servers:", err)
+		}
+		return err
+	}
+	return nil
 }
 
 //EtcdPut puts with etcd client

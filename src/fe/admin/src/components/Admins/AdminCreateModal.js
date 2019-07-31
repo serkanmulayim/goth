@@ -14,6 +14,9 @@ class AdminCreateModal extends React.Component {
     if (event.target.password.value !== event.target.verifypassword.value) {
       return "Passwords do not match";
     }
+    if(!event.target.email.value.match(/^([\w.%+-]+)@([\w-]+\.)+([\w]{2,})$/i)) {
+      return "Invalid email address";
+    }
     return null;
 }
 

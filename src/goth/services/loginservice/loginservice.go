@@ -1,7 +1,6 @@
 package loginservice
 
 import (
-	"context"
 	"encoding/hex"
 	"goth/cryptoutils"
 	"goth/objects/admin"
@@ -11,10 +10,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.etcd.io/etcd/clientv3"
 )
 
 const (
@@ -38,7 +35,7 @@ const (
 //AppLoginRequestHandler Handle Login Request
 func AppLoginRequestHandler(c *gin.Context) {
 
-	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
+	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(etcdclientservice.ETCDIface)
 	if !ok {
 		log.Fatal("EtcdClient does not exist in LoginService")
 	}
@@ -56,7 +53,7 @@ func AppLoginRequestHandler(c *gin.Context) {
 
 		sessionID := generateSessionID()
 		etcdSessionPath := etcdGetSessionPath(sessionID, false)
-		err2 := etcdclientservice.EtcdPut(etcdSessionPath, username, etcdClient)
+		err2 := etcdClient.Put(etcdSessionPath, username)
 
 		if err2 != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -87,7 +84,7 @@ func AppLoginRequestHandler(c *gin.Context) {
 //AdminLoginRequestHandler Handle Login Request
 func AdminLoginRequestHandler(c *gin.Context) {
 
-	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
+	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(etcdclientservice.ETCDIface)
 	if !ok {
 		log.Fatal("EtcdClient does not exist in LoginService")
 	}
@@ -105,7 +102,7 @@ func AdminLoginRequestHandler(c *gin.Context) {
 
 		sessionID := generateSessionID()
 		etcdSessionPath := etcdGetSessionPath(sessionID, true)
-		err2 := etcdclientservice.EtcdPut(etcdSessionPath, username, etcdClient)
+		err2 := etcdClient.Put(etcdSessionPath, username)
 
 		if err2 != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -171,7 +168,7 @@ func AdminCheckAuthRequestHandler(c *gin.Context) {
 		})
 	} else {
 
-		admin := admin.Object{FirstName: "Serkan", LastName: "Mulayim", Email: "ser$%kan@gmail.com", Phone: "5555555", Address: "400 3rd street", UserID: 1}
+		admin := admin.Object{FirstName: "Serkan", LastName: "Mulayim", Email: "ser$%kan@gmail.com", Phone: "5555555", Address: "400 3rd street", ID: 1}
 		c.JSON(http.StatusOK, gin.H{
 			"message": "OK",
 			"admin":   admin,
@@ -182,7 +179,7 @@ func AdminCheckAuthRequestHandler(c *gin.Context) {
 //AppLogoutHandler log
 func AppLogoutHandler(c *gin.Context) {
 
-	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
+	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(etcdclientservice.ETCDIface)
 	if !ok {
 		log.Fatal("EtcdClient does not exist in LoginService")
 	}
@@ -214,7 +211,7 @@ func AppLogoutHandler(c *gin.Context) {
 //AdminLogoutHandler log
 func AdminLogoutHandler(c *gin.Context) {
 
-	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
+	etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(etcdclientservice.ETCDIface)
 	if !ok {
 		log.Fatal("EtcdClient does not exist in LoginService")
 	}
@@ -247,7 +244,7 @@ func AdminLogoutHandler(c *gin.Context) {
 func AppAuthenticationFilterMiddleWare() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
+		etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(etcdclientservice.ETCDIface)
 		if !ok {
 			log.Fatal("EtcdClient does not exist in AuthenticationFilterMiddleWare")
 		}
@@ -279,7 +276,7 @@ func AppAuthenticationFilterMiddleWare() gin.HandlerFunc {
 func AdminAuthenticationFilterMiddleWare() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(*clientv3.Client)
+		etcdClient, ok := c.MustGet(etcdclientservice.EtcdClientAPIMiddleWareName).(etcdclientservice.ETCDIface)
 		if !ok {
 			log.Fatal("EtcdClient does not exist in AuthenticationFilterMiddleWare")
 		}
@@ -307,22 +304,20 @@ func AdminAuthenticationFilterMiddleWare() gin.HandlerFunc {
 	}
 }
 
-func etcdRemoveSession(sessionID string, isAdmin bool, cli *clientv3.Client) {
+func etcdRemoveSession(sessionID string, isAdmin bool, cli etcdclientservice.ETCDIface) {
 	sessionPath := etcdGetSessionPath(sessionID, isAdmin)
-	ctx, cancel := context.WithTimeout(context.Background(), etcdclientservice.EtcdClientClientTimeout*time.Millisecond)
-	_, err := cli.Delete(ctx, sessionPath)
-	cancel()
+
+	_, err := cli.Delete(sessionPath)
 	if err != nil {
 		log.Println("Error in removing sessionId for sessionID\". Deleting cookie anyways", sessionID, "\" :", err)
 	}
 
 }
 
-func etcdGetSession(sessionID string, isAdmin bool, cli *clientv3.Client) (string, error) {
+func etcdGetSession(sessionID string, isAdmin bool, cli etcdclientservice.ETCDIface) (string, error) {
 	sessionPath := etcdGetSessionPath(sessionID, isAdmin)
-	ctx, cancel := context.WithTimeout(context.Background(), etcdclientservice.EtcdClientClientTimeout*time.Millisecond)
-	gr, err := cli.Get(ctx, sessionPath)
-	cancel()
+
+	gr, err := cli.Get(sessionPath)
 
 	if err != nil {
 		log.Println("Error in getting sessionId for sessionID\"", sessionID, "\" :", err)
@@ -338,7 +333,7 @@ func etcdGetSession(sessionID string, isAdmin bool, cli *clientv3.Client) (strin
 
 func authenticateAdmin(u string, p string) (*admin.Object, error) {
 	if u == "serkan" && p == "password" {
-		admin := admin.Object{FirstName: "Serkan", LastName: "Mulayim", Email: "ser$%kan@gmail.com", Phone: "5555555", Address: "400 3rd street", UserID: 1}
+		admin := admin.Object{FirstName: "Serkan", LastName: "Mulayim", Email: "ser$%kan@gmail.com", Phone: "5555555", Address: "400 3rd street", ID: 1}
 		return &admin, nil
 	}
 	return nil, nil

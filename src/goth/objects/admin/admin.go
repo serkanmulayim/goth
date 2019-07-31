@@ -7,5 +7,10 @@ type Object struct {
 	Email     string `json:"email"`
 	Phone     string `json:"phone"`
 	Address   string `json:"address"`
-	UserID    int    `json:"userid"`
+	ID        int64  `json:"id"`
+}
+
+type Password struct {
+	HashPassword string `json:"hashPassword"`
+	ID           int64  `json:"id"`
 }
